@@ -1,0 +1,51 @@
+id: CrawlStateMachine
+events:
+  - http:
+      path: "/"
+      method: "POST"
+  # - schedule:
+  #     rate: rate(24 hours)
+  #     enabled:
+  #       # ${self:custom.scheduleEnabled.${opt:stage, self:provider.stage}, false}
+  #       false
+  #     input:
+  #       executionId.$: $$.Execution.Id
+  #       executionName.$: $$.Execution.Name
+notifications:
+  ABORTED:
+    - sns: !Ref WebCrawlNotificationsTopic
+  FAILED:
+    - sns: !Ref WebCrawlNotificationsTopic
+  TIMED_OUT:
+    - sns: !Ref WebCrawlNotificationsTopic
+  SUCCEEDED:
+    - sns: !Ref WebCrawlNotificationsTopic
+role:
+  Fn::GetAtt: [StateMachinePassRole, Arn]
+definition:
+  Comment: "Serverless Web Crawl"
+  StartAt: WebCrawl
+  States:
+    WebCrawl:
+      Type: Task
+      Resource: "arn:aws:states:::ecs:runTask.sync"
+      Parameters:
+        LaunchType: "FARGATE"
+        Cluster: "#{ECSCluster}"
+        TaskDefinition: "#{FargateTaskDefinition}"
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            Subnets:
+              - "#{PublicSubnetOne}"
+              - "#{PublicSubnetTwo}"
+            AssignPublicIp: ENABLED
+        Overrides:
+          ContainerOverrides:
+            - Name: "#{ServiceName}"
+              Command.$: $$.Execution.Input.command  # For more information on Contact Object, see https://docs.aws.amazon.com/step-functions/latest/dg/input-output-contextobject.html
+              Environment:
+                - Name: EXECUTION_ID
+                  Value.$: $$.Execution.Id
+                - Name: EXECUTION_NAME
+                  Value.$: $$.Execution.Name
+      End: true

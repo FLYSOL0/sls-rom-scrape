@@ -1,0 +1,5 @@
+Outputs:
+  WebCrawl:
+    Description: "The ARN of the StateMachine WebCrawl"
+    Value:
+      Ref: CrawlStateMachine
